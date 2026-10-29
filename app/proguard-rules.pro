@@ -1,0 +1,3 @@
+-keep class com.badlogic.gdx.backends.android.** { *; }
+-keep class com.badlogic.gdx.** { *; }
+-keep class com.yt.harvestrush.** { *; }

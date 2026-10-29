@@ -1,0 +1,7 @@
+<resources>
+    <style name="Theme.HarvestRush" parent="android:Theme.NoTitleBar.Fullscreen">
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowBackground">@android:color/black</item>
+    </style>
+</resources>
