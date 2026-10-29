@@ -87,8 +87,6 @@ class SynthAudio(private val playerStore: PlayerStore) {
         loseSound?.play(0.7f)
     }
 
-    // --- Procedural PCM Waveform Generators ---
-
     private fun generateEngineTone(): ShortArray {
         val sampleRate = 22050
         val duration = 0.5f
@@ -96,7 +94,6 @@ class SynthAudio(private val playerStore: PlayerStore) {
         val samples = ShortArray(numSamples)
         for (i in 0 until numSamples) {
             val t = i.toFloat() / sampleRate
-            // Rich multi-harmonic low rumble
             val s1 = MathUtils.sin(2f * MathUtils.PI * 65f * t)
             val s2 = MathUtils.sin(2f * MathUtils.PI * 130f * t) * 0.5f
             val s3 = MathUtils.sin(2f * MathUtils.PI * 195f * t) * 0.25f
@@ -114,7 +111,7 @@ class SynthAudio(private val playerStore: PlayerStore) {
         val samples = ShortArray(numSamples)
         for (i in 0 until numSamples) {
             val t = i.toFloat() / numSamples
-            val env = MathUtils.sin(t * MathUtils.PI) // bell envelope
+            val env = MathUtils.sin(t * MathUtils.PI)
             val noise = MathUtils.random(-1f, 1f) * 0.6f
             val tone = MathUtils.sin(2f * MathUtils.PI * 340f * (i.toFloat() / sampleRate)) * 0.4f
             val total = (noise + tone) * env * 0.7f
@@ -130,8 +127,7 @@ class SynthAudio(private val playerStore: PlayerStore) {
         val samples = ShortArray(numSamples)
         for (i in 0 until numSamples) {
             val t = i.toFloat() / numSamples
-            val env = (1.0f - t) * (1.0f - t) // fast decay
-            // Pitch drops rapidly from 480Hz to 160Hz for cartoon "bloop/pop"
+            val env = (1.0f - t) * (1.0f - t)
             val freq = MathUtils.lerp(480f, 160f, t)
             val tone = MathUtils.sin(2f * MathUtils.PI * freq * (i.toFloat() / sampleRate))
             samples[i] = (tone * env * 0.85f * 32767).toInt().toShort()
@@ -158,7 +154,7 @@ class SynthAudio(private val playerStore: PlayerStore) {
         val duration = 0.9f
         val numSamples = (sampleRate * duration).toInt()
         val samples = ShortArray(numSamples)
-        val notes = floatArrayOf(523.25f, 659.25f, 783.99f, 1046.50f) // C5, E5, G5, C6
+        val notes = floatArrayOf(523.25f, 659.25f, 783.99f, 1046.50f)
         val noteLen = numSamples / 4
         for (i in 0 until numSamples) {
             val noteIdx = MathUtils.clamp(i / noteLen, 0, 3)
@@ -176,7 +172,7 @@ class SynthAudio(private val playerStore: PlayerStore) {
         val duration = 0.8f
         val numSamples = (sampleRate * duration).toInt()
         val samples = ShortArray(numSamples)
-        val notes = floatArrayOf(440f, 415.3f, 392f, 349.2f) // Descending
+        val notes = floatArrayOf(440f, 415.3f, 392f, 349.2f)
         val noteLen = numSamples / 4
         for (i in 0 until numSamples) {
             val noteIdx = MathUtils.clamp(i / noteLen, 0, 3)
@@ -189,6 +185,18 @@ class SynthAudio(private val playerStore: PlayerStore) {
         return samples
     }
 
+    private fun writeShortLE(out: DataOutputStream, value: Int) {
+        out.writeByte(value and 0xFF)
+        out.writeByte((value shr 8) and 0xFF)
+    }
+
+    private fun writeIntLE(out: DataOutputStream, value: Int) {
+        out.writeByte(value and 0xFF)
+        out.writeByte((value shr 8) and 0xFF)
+        out.writeByte((value shr 16) and 0xFF)
+        out.writeByte((value shr 24) and 0xFF)
+    }
+
     private fun createSoundFromPcm(pcm: ShortArray): Sound {
         val sampleRate = 22050
         val byteBuf = ByteBuffer.allocate(pcm.size * 2).order(ByteOrder.LITTLE_ENDIAN)
@@ -199,20 +207,19 @@ class SynthAudio(private val playerStore: PlayerStore) {
 
         val baos = ByteArrayOutputStream()
         val out = DataOutputStream(baos)
-        // Standard RIFF / WAV Header
         out.writeBytes("RIFF")
-        out.writeInt(Integer.reverseBytes(36 + pcmBytes.size))
+        writeIntLE(out, 36 + pcmBytes.size)
         out.writeBytes("WAVE")
         out.writeBytes("fmt ")
-        out.writeInt(Integer.reverseBytes(16)) // Subchunk1Size (16 for PCM)
-        out.writeShort(java.lang.Short.reverseBytes(1)) // AudioFormat 1 = PCM
-        out.writeShort(java.lang.Short.reverseBytes(1)) // NumChannels = 1
-        out.writeInt(Integer.reverseBytes(sampleRate))
-        out.writeInt(Integer.reverseBytes(sampleRate * 2)) // ByteRate
-        out.writeShort(java.lang.Short.reverseBytes(2)) // BlockAlign
-        out.writeShort(java.lang.Short.reverseBytes(16)) // BitsPerSample
+        writeIntLE(out, 16)
+        writeShortLE(out, 1)
+        writeShortLE(out, 1)
+        writeIntLE(out, sampleRate)
+        writeIntLE(out, sampleRate * 2)
+        writeShortLE(out, 2)
+        writeShortLE(out, 16)
         out.writeBytes("data")
-        out.writeInt(Integer.reverseBytes(pcmBytes.size))
+        writeIntLE(out, pcmBytes.size)
         out.write(pcmBytes)
         out.flush()
 
