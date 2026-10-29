@@ -7,22 +7,25 @@ import com.badlogic.gdx.backends.android.AndroidApplicationConfiguration
 
 /**
  * Main Android entry point for Harvest Rush 3D.
- * Configures libGDX with OpenGL ES 3.0 and full-screen immersive mode.
+ * Configured for maximum compatibility across all Android devices (OpenGL ES 2.0/3.0).
  */
 class MainActivity : AndroidApplication() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Keep screen on during gameplay
-        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        try {
+            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        } catch (e: Exception) {
+            // Ignore if window flags not permitted
+        }
 
         val config = AndroidApplicationConfiguration().apply {
-            useGL30 = true
+            useGL30 = false // GLES 2.0/3.0 universal compatibility
             useImmersiveMode = true
             useAccelerometer = false
             useCompass = false
-            numSamples = 2 // 2x MSAA for crisp low-poly edges
+            // Do NOT set numSamples = 2, causes fatal "No EGLConfig chosen" crash on Android devices
         }
 
         initialize(HarvestGame(this), config)

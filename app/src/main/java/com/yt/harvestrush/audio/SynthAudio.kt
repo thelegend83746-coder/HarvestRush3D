@@ -2,7 +2,6 @@ package com.yt.harvestrush.audio
 
 import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.audio.Sound
-import com.badlogic.gdx.files.FileHandle
 import com.badlogic.gdx.math.MathUtils
 import com.yt.harvestrush.data.PlayerStore
 import java.io.ByteArrayOutputStream
@@ -13,7 +12,7 @@ import java.nio.ByteOrder
 /**
  * 100% Procedural Audio Synthesizer.
  * Synthesizes engine hum, cutter swoosh, wagon pop, UI clicks, and jingles in memory.
- * No external audio files or downloads needed.
+ * Saves to local cache files so Android's SoundPool can load them with zero crash.
  */
 class SynthAudio(private val playerStore: PlayerStore) {
 
@@ -28,63 +27,79 @@ class SynthAudio(private val playerStore: PlayerStore) {
 
     init {
         try {
-            engineSound = createSoundFromPcm(generateEngineTone())
-            cutSound = createSoundFromPcm(generateCutSwoosh())
-            wagonPopSound = createSoundFromPcm(generateWagonPop())
-            clickSound = createSoundFromPcm(generateClick())
-            winSound = createSoundFromPcm(generateWinJingle())
-            loseSound = createSoundFromPcm(generateLoseJingle())
-        } catch (e: Exception) {
-            Gdx.app.error("SynthAudio", "Error synthesizing audio: ${e.message}")
+            engineSound = createSoundFromPcm("engine", generateEngineTone())
+            cutSound = createSoundFromPcm("cut", generateCutSwoosh())
+            wagonPopSound = createSoundFromPcm("pop", generateWagonPop())
+            clickSound = createSoundFromPcm("click", generateClick())
+            winSound = createSoundFromPcm("win", generateWinJingle())
+            loseSound = createSoundFromPcm("lose", generateLoseJingle())
+        } catch (e: Throwable) {
+            Gdx.app.error("SynthAudio", "Error initializing audio: ${e.message}")
         }
     }
 
     fun playClick() {
         if (!playerStore.soundEnabled) return
-        clickSound?.play(0.6f)
+        try {
+            clickSound?.play(0.6f)
+        } catch (e: Throwable) {}
     }
 
     fun playCut() {
         if (!playerStore.soundEnabled) return
-        val pitch = MathUtils.random(0.9f, 1.15f)
-        cutSound?.play(0.35f, pitch, 0f)
+        try {
+            val pitch = MathUtils.random(0.9f, 1.15f)
+            cutSound?.play(0.35f, pitch, 0f)
+        } catch (e: Throwable) {}
     }
 
     fun playWagonPop() {
         if (!playerStore.soundEnabled) return
-        val pitch = MathUtils.random(0.95f, 1.2f)
-        wagonPopSound?.play(0.85f, pitch, 0f)
+        try {
+            val pitch = MathUtils.random(0.95f, 1.2f)
+            wagonPopSound?.play(0.85f, pitch, 0f)
+        } catch (e: Throwable) {}
     }
 
     fun startEngine() {
         if (!playerStore.soundEnabled) return
-        if (engineSoundId == -1L && engineSound != null) {
-            engineSoundId = engineSound!!.loop(0.25f, 1.0f, 0f)
-        }
+        try {
+            if (engineSoundId == -1L && engineSound != null) {
+                engineSoundId = engineSound!!.loop(0.25f, 1.0f, 0f)
+            }
+        } catch (e: Throwable) {}
     }
 
     fun updateEnginePitch(speedRatio: Float) {
-        if (engineSoundId != -1L && engineSound != null) {
-            val pitch = MathUtils.clamp(0.8f + speedRatio * 0.5f, 0.7f, 1.6f)
-            engineSound?.setPitch(engineSoundId, pitch)
-        }
+        try {
+            if (engineSoundId != -1L && engineSound != null) {
+                val pitch = MathUtils.clamp(0.8f + speedRatio * 0.5f, 0.7f, 1.6f)
+                engineSound?.setPitch(engineSoundId, pitch)
+            }
+        } catch (e: Throwable) {}
     }
 
     fun stopEngine() {
-        if (engineSoundId != -1L) {
-            engineSound?.stop(engineSoundId)
-            engineSoundId = -1L
-        }
+        try {
+            if (engineSoundId != -1L) {
+                engineSound?.stop(engineSoundId)
+                engineSoundId = -1L
+            }
+        } catch (e: Throwable) {}
     }
 
     fun playWin() {
         if (!playerStore.soundEnabled) return
-        winSound?.play(0.8f)
+        try {
+            winSound?.play(0.8f)
+        } catch (e: Throwable) {}
     }
 
     fun playLose() {
         if (!playerStore.soundEnabled) return
-        loseSound?.play(0.7f)
+        try {
+            loseSound?.play(0.7f)
+        } catch (e: Throwable) {}
     }
 
     private fun generateEngineTone(): ShortArray {
@@ -197,40 +212,41 @@ class SynthAudio(private val playerStore: PlayerStore) {
         out.writeByte((value shr 24) and 0xFF)
     }
 
-    private fun createSoundFromPcm(pcm: ShortArray): Sound {
-        val sampleRate = 22050
-        val byteBuf = ByteBuffer.allocate(pcm.size * 2).order(ByteOrder.LITTLE_ENDIAN)
-        for (s in pcm) {
-            byteBuf.putShort(s)
-        }
-        val pcmBytes = byteBuf.array()
+    private fun createSoundFromPcm(name: String, pcm: ShortArray): Sound? {
+        return try {
+            val sampleRate = 22050
+            val byteBuf = ByteBuffer.allocate(pcm.size * 2).order(ByteOrder.LITTLE_ENDIAN)
+            for (s in pcm) {
+                byteBuf.putShort(s)
+            }
+            val pcmBytes = byteBuf.array()
 
-        val baos = ByteArrayOutputStream()
-        val out = DataOutputStream(baos)
-        out.writeBytes("RIFF")
-        writeIntLE(out, 36 + pcmBytes.size)
-        out.writeBytes("WAVE")
-        out.writeBytes("fmt ")
-        writeIntLE(out, 16)
-        writeShortLE(out, 1)
-        writeShortLE(out, 1)
-        writeIntLE(out, sampleRate)
-        writeIntLE(out, sampleRate * 2)
-        writeShortLE(out, 2)
-        writeShortLE(out, 16)
-        out.writeBytes("data")
-        writeIntLE(out, pcmBytes.size)
-        out.write(pcmBytes)
-        out.flush()
+            val baos = ByteArrayOutputStream()
+            val out = DataOutputStream(baos)
+            out.writeBytes("RIFF")
+            writeIntLE(out, 36 + pcmBytes.size)
+            out.writeBytes("WAVE")
+            out.writeBytes("fmt ")
+            writeIntLE(out, 16)
+            writeShortLE(out, 1)
+            writeShortLE(out, 1)
+            writeIntLE(out, sampleRate)
+            writeIntLE(out, sampleRate * 2)
+            writeShortLE(out, 2)
+            writeShortLE(out, 16)
+            out.writeBytes("data")
+            writeIntLE(out, pcmBytes.size)
+            out.write(pcmBytes)
+            out.flush()
 
-        val wavData = baos.toByteArray()
-        val handle = object : FileHandle() {
-            override fun read() = wavData.inputStream()
-            override fun length() = wavData.size.toLong()
-            override fun exists() = true
-            override fun name() = "synth.wav"
+            val wavData = baos.toByteArray()
+            val fileHandle = Gdx.files.local("synth_$name.wav")
+            fileHandle.writeBytes(wavData, false)
+            Gdx.audio.newSound(fileHandle)
+        } catch (e: Throwable) {
+            Gdx.app.error("SynthAudio", "Could not load sound $name: ${e.message}")
+            null
         }
-        return Gdx.audio.newSound(handle)
     }
 
     fun dispose() {
