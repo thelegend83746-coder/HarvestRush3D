@@ -79,7 +79,6 @@ dependencies {
     natives("com.badlogicgames.gdx:gdx-freetype-platform:$gdxVersion:natives-x86_64")
 }
 
-// Extract libGDX native libraries (.so) into libs/ folder
 tasks.register("copyAndroidNatives") {
     doFirst {
         file("libs/armeabi-v7a").mkdirs()
@@ -87,21 +86,25 @@ tasks.register("copyAndroidNatives") {
         file("libs/x86").mkdirs()
         file("libs/x86_64").mkdirs()
 
-        natives.files.forEach { jar ->
-            var outputDir = file("libs/armeabi-v7a")
-            if (jar.name.endsWith("natives-arm64-v8a.jar")) outputDir = file("libs/arm64-v8a")
-            if (jar.name.endsWith("natives-armeabi-v7a.jar")) outputDir = file("libs/armeabi-v7a")
-            if (jar.name.endsWith("natives-x86_64.jar")) outputDir = file("libs/x86_64")
-            if (jar.name.endsWith("natives-x86.jar")) outputDir = file("libs/x86")
+        try {
+            natives.files.forEach { jar ->
+                var outputDir = file("libs/armeabi-v7a")
+                if (jar.name.contains("arm64-v8a")) outputDir = file("libs/arm64-v8a")
+                else if (jar.name.contains("armeabi-v7a")) outputDir = file("libs/armeabi-v7a")
+                else if (jar.name.contains("x86_64")) outputDir = file("libs/x86_64")
+                else if (jar.name.contains("x86")) outputDir = file("libs/x86")
 
-            zipTree(jar).matching {
-                include("*.so")
-            }.forEach { soFile ->
-                val target = File(outputDir, soFile.name)
-                if (!target.exists() || target.length() != soFile.length()) {
-                    soFile.copyTo(target, overwrite = true)
+                zipTree(jar).matching {
+                    include("*.so")
+                }.forEach { soFile ->
+                    val target = java.io.File(outputDir, soFile.name)
+                    if (!target.exists() || target.length() != soFile.length()) {
+                        soFile.copyTo(target, overwrite = true)
+                    }
                 }
             }
+        } catch (e: Exception) {
+            logger.warn("Native copy skipped: " + e.message)
         }
     }
 }
