@@ -1,3 +1,5 @@
+import java.io.File
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -97,7 +99,7 @@ tasks.register("copyAndroidNatives") {
                 zipTree(jar).matching {
                     include("*.so")
                 }.forEach { soFile ->
-                    val target = java.io.File(outputDir, soFile.name)
+                    val target = File(outputDir, soFile.name)
                     if (!target.exists() || target.length() != soFile.length()) {
                         soFile.copyTo(target, overwrite = true)
                     }
