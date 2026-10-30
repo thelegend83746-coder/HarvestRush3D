@@ -35,40 +35,36 @@ class ResultScreen(val game: HarvestGame, val world: World) : ScreenAdapter() {
         }
         stage.addActor(root)
 
-        // Title: VICTORY or MATCH FINISHED
         val playerWon = world.leaderboard.firstOrNull()?.combine?.isPlayer == true
-        val titleText = if (playerWon) "🏆 VICTORY!" else "MATCH FINISHED"
+        val titleText = if (playerWon) "VICTORY!" else "MATCH FINISHED"
         val titleLabel = Label(titleText, game.skin, "big").apply {
             color = if (playerWon) Color(0.98f, 0.85f, 0.2f, 1f) else Color.WHITE
         }
         root.add(titleLabel).padBottom(16f).row()
 
-        // Count-up Animated Harvested Percentage
         val playerPct = world.cropGrid.getCutPercentage(0)
         percentLabel = Label("0.0%", game.skin, "big").apply {
             color = Color(0.18f, 0.88f, 0.98f, 1f)
         }
         root.add(percentLabel).padBottom(24f).row()
 
-        // Tween to count-up from 0% to playerPct
         tween = FloatTween(0f, playerPct, 1.4f, onUpdate = { v ->
             percentLabel.setText(String.format("%.1f%%", v))
         })
 
-        // Podium / Leaderboard Table
         val podiumTable = Table(game.skin).apply {
             background = game.skin.getDrawable("panel-bg")
             pad(16f)
         }
         for (entry in world.leaderboard) {
-            val rankIcon = when (entry.rank) {
-                1 -> "🥇"
-                2 -> "🥈"
-                3 -> "🥉"
-                else -> "4."
+            val rankStr = when (entry.rank) {
+                1 -> "1st"
+                2 -> "2nd"
+                3 -> "3rd"
+                else -> "${entry.rank}th"
             }
             val rowLabel = Label(
-                String.format("%s  %s  -  %.1f%%", rankIcon, entry.combine.name, entry.percent),
+                String.format("%s  %s  -  %.1f%%", rankStr, entry.combine.name, entry.percent),
                 game.skin
             ).apply {
                 color = entry.combine.color
@@ -77,12 +73,10 @@ class ResultScreen(val game: HarvestGame, val world: World) : ScreenAdapter() {
         }
         root.add(podiumTable).width(300f).padBottom(24f).row()
 
-        // Resources Earned
         val earnedCrops = world.playerCombine.harvestedCrops
         val resLabel = Label(String.format("Earned: +%d %s", earnedCrops, world.fieldInfo.cropType.displayName), game.skin)
         root.add(resLabel).padBottom(32f).row()
 
-        // Buttons: Retry / Home
         val btnTable = Table()
         val retryBtn = TextButton("RETRY", game.skin).apply {
             addListener(object : ChangeListener() {

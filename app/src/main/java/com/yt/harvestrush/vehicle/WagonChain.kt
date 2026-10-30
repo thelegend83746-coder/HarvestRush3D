@@ -2,6 +2,7 @@ package com.yt.harvestrush.vehicle
 
 import com.badlogic.gdx.graphics.Camera
 import com.badlogic.gdx.graphics.Color
+import com.badlogic.gdx.graphics.g3d.Environment
 import com.badlogic.gdx.graphics.g3d.ModelBatch
 import com.badlogic.gdx.graphics.g3d.ModelInstance
 import com.badlogic.gdx.math.MathUtils
@@ -22,7 +23,6 @@ class WagonChain(
     private val vehicleModels: VehicleModels,
     private val shadowBlob: ShadowBlob
 ) {
-    // Ring buffer capacity (Power of 2 for fast bitwise masking)
     private val bufferMask = GameConfig.WAGON_RING_BUFFER_SIZE - 1
     private val pathX = FloatArray(GameConfig.WAGON_RING_BUFFER_SIZE)
     private val pathZ = FloatArray(GameConfig.WAGON_RING_BUFFER_SIZE)
@@ -35,7 +35,6 @@ class WagonChain(
     private var lastRecordedX: Float = 0f
     private var lastRecordedZ: Float = 0f
 
-    // Wagons state
     class WagonItem(
         val index: Int,
         var currentX: Float = 0f,
@@ -46,17 +45,15 @@ class WagonChain(
 
     val wagons = ArrayList<WagonItem>(64)
 
-    // Shared visual model instances (re-used for drawing)
     private val wagonInstance: ModelInstance = vehicleModels.getWagonInstance(color)
     private val cargoInstance: ModelInstance = vehicleModels.getCargoInstance(cropType)
-
     private val samplesPerWagonSpacing: Float = GameConfig.WAGON_SPACING / GameConfig.WAGON_PATH_SAMPLE_INTERVAL
+
+    // Reusable vector for zero-allocation rendering
+    private val tmpPos = Vector3()
 
     fun getCount(): Int = wagons.size
 
-    /**
-     * Initializes the path history at the starting position and heading.
-     */
     fun reset(startX: Float, startZ: Float, startHeadingDeg: Float) {
         wagons.clear()
         headIdx = 0
@@ -74,9 +71,6 @@ class WagonChain(
         }
     }
 
-    /**
-     * Appends the combine's movement to the ring-buffer path history.
-     */
     fun updatePath(currentX: Float, currentZ: Float, currentHeadingDeg: Float, delta: Float) {
         val dx = currentX - lastRecordedX
         val dz = currentZ - lastRecordedZ
@@ -86,7 +80,6 @@ class WagonChain(
         lastRecordedX = currentX
         lastRecordedZ = currentZ
 
-        // Record discrete samples along traveled path
         while (accumulatedDist >= GameConfig.WAGON_PATH_SAMPLE_INTERVAL) {
             headIdx = (headIdx + 1) and bufferMask
             pathX[headIdx] = currentX
@@ -96,7 +89,6 @@ class WagonChain(
             accumulatedDist -= GameConfig.WAGON_PATH_SAMPLE_INTERVAL
         }
 
-        // Update squash & stretch pop animations for newly attached wagons
         for (w in wagons) {
             if (w.popTimer > 0f) {
                 w.popTimer = maxOf(0f, w.popTimer - delta)
@@ -104,9 +96,6 @@ class WagonChain(
         }
     }
 
-    /**
-     * Attaches a new wagon to the unlimited chain.
-     */
     fun addWagon() {
         val newIndex = wagons.size
         val wagon = WagonItem(
@@ -116,20 +105,15 @@ class WagonChain(
         wagons.add(wagon)
     }
 
-    /**
-     * Renders all wagons in the chain with frustum culling and distance LOD.
-     */
-    fun render(batch: ModelBatch, camera: Camera) {
+    fun render(batch: ModelBatch, camera: Camera, environment: Environment? = null) {
         val wagonCount = wagons.size
         if (wagonCount == 0) return
 
         val camPos = camera.position
         val frustum = camera.frustum
-        val tmpPos = Vector3()
 
         for (i in 0 until wagonCount) {
             val wagon = wagons[i]
-            // Direct O(1) sample index lookup along ring buffer
             val sampleOffset = ((i + 1) * samplesPerWagonSpacing).toInt()
             val sampleIdx = (headIdx - sampleOffset) and bufferMask
 
@@ -137,52 +121,53 @@ class WagonChain(
             val targetZ = pathZ[sampleIdx]
             val targetYaw = pathYaw[sampleIdx]
 
-            // Visual follow-lag inertia smoothing
             wagon.currentX = MathUtils.lerp(wagon.currentX, targetX, 0.75f)
             wagon.currentZ = MathUtils.lerp(wagon.currentZ, targetZ, 0.75f)
             wagon.currentYaw = targetYaw
 
             tmpPos.set(wagon.currentX, 0.5f, wagon.currentZ)
 
-            // Frustum Culling
             if (!frustum.sphereInFrustum(tmpPos, 2.0f)) {
                 continue
             }
 
-            // Distance LOD check
             val distSq = tmpPos.dst2(camPos)
-            val isFar = distSq > 1600f // > 40 units away
+            val isFar = distSq > 1600f
 
-            // Squash & stretch scale spring pop calculation
             var scaleX = 1.0f
             var scaleY = 1.0f
             var scaleZ = 1.0f
             if (wagon.popTimer > 0f) {
                 val t = 1.0f - (wagon.popTimer / GameConfig.WAGON_POP_DURATION)
-                // Spring overshoot bounce
                 val bounce = MathUtils.sin(t * MathUtils.PI * 2.5f) * (1.0f - t)
                 scaleX = 1.0f + bounce * 0.45f
                 scaleY = 1.0f - bounce * 0.35f
                 scaleZ = 1.0f + bounce * 0.45f
             }
 
-            // Render Blob Shadow
             shadowBlob.render(batch, wagon.currentX, wagon.currentZ, 0.9f, 1.1f, 0.4f)
 
-            // Render Wagon Chassis
             wagonInstance.transform.idt()
             wagonInstance.transform.setToTranslation(wagon.currentX, 0f, wagon.currentZ)
             wagonInstance.transform.rotate(Vector3.Y, -wagon.currentYaw + 90f)
             wagonInstance.transform.scale(scaleX, scaleY, scaleZ)
-            batch.render(wagonInstance)
 
-            // Render Cargo Load (skip on far LOD to save draw calls)
+            if (environment != null) {
+                batch.render(wagonInstance, environment)
+            } else {
+                batch.render(wagonInstance)
+            }
+
             if (!isFar) {
                 cargoInstance.transform.idt()
                 cargoInstance.transform.setToTranslation(wagon.currentX, 0.35f * scaleY, wagon.currentZ)
                 cargoInstance.transform.rotate(Vector3.Y, -wagon.currentYaw + 90f)
                 cargoInstance.transform.scale(scaleX * 0.85f, scaleY * 0.85f, scaleZ * 0.85f)
-                batch.render(cargoInstance)
+                if (environment != null) {
+                    batch.render(cargoInstance, environment)
+                } else {
+                    batch.render(cargoInstance)
+                }
             }
         }
     }

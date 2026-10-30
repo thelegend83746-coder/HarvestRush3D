@@ -6,8 +6,11 @@ import com.badlogic.gdx.ScreenAdapter
 import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.GL20
 import com.badlogic.gdx.graphics.PerspectiveCamera
+import com.badlogic.gdx.graphics.g3d.Environment
 import com.badlogic.gdx.graphics.g3d.ModelBatch
 import com.badlogic.gdx.graphics.g3d.ModelInstance
+import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute
+import com.badlogic.gdx.graphics.g3d.environment.DirectionalLight
 import com.badlogic.gdx.math.MathUtils
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.scenes.scene2d.Actor
@@ -17,24 +20,31 @@ import com.badlogic.gdx.scenes.scene2d.ui.ProgressBar
 import com.badlogic.gdx.scenes.scene2d.ui.Table
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton
 import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener
+import com.badlogic.gdx.utils.Align
 import com.badlogic.gdx.utils.viewport.ScreenViewport
 import com.yt.harvestrush.HarvestGame
 import com.yt.harvestrush.config.GameConfig
 
 /**
  * Home Screen with interactive 3D Diorama:
- * - Rotating player combine on miniature farm diorama
+ * - Rotating player combine on miniature farm diorama with 3D directional lighting
  * - Fenced "Unlock next field" panel with 4 persistent resource slots
  * - Field Best % label and progress bar
  * - Player Name Pill (tap to edit)
- * - Big blue circular Play button with pulse
- * - Field selector (swipe or prev/next arrows)
+ * - Big blue circular Play button with scale pulse
+ * - Field selector (prev/next arrows)
  */
 class HomeScreen(val game: HarvestGame) : ScreenAdapter() {
 
     private val stage = Stage(ScreenViewport())
     private val modelBatch = ModelBatch()
     private val dioramaCam = PerspectiveCamera(50f, Gdx.graphics.width.toFloat(), Gdx.graphics.height.toFloat())
+
+    // 3D Lighting Environment for Diorama
+    private val environment = Environment().apply {
+        set(ColorAttribute(ColorAttribute.AmbientLight, 0.65f, 0.65f, 0.68f, 1f))
+        add(DirectionalLight().set(0.95f, 0.92f, 0.85f, -0.4f, -0.8f, -0.4f))
+    }
 
     private var selectedFieldIndex = 0
     private var dioramaAngle = 0f
@@ -72,7 +82,7 @@ class HomeScreen(val game: HarvestGame) : ScreenAdapter() {
 
         // Top Bar: Settings Button
         val topBar = Table().apply { pad(16f) }
-        val settingsBtn = TextButton("⚙", game.skin).apply {
+        val settingsBtn = TextButton("OPT", game.skin).apply {
             addListener(object : ChangeListener() {
                 override fun changed(event: ChangeEvent?, actor: Actor?) {
                     game.audio.playClick()
@@ -80,7 +90,7 @@ class HomeScreen(val game: HarvestGame) : ScreenAdapter() {
                 }
             })
         }
-        topBar.add(settingsBtn).left().size(54f, 54f)
+        topBar.add(settingsBtn).left().size(64f, 48f)
         topBar.add().expandX()
         root.add(topBar).fillX().row()
 
@@ -135,7 +145,7 @@ class HomeScreen(val game: HarvestGame) : ScreenAdapter() {
         root.add(switcherTable).padBottom(12f).row()
 
         // Name Pill (Tap to edit)
-        namePillButton = TextButton("👤 " + game.playerStore.playerName, game.skin).apply {
+        namePillButton = TextButton(game.playerStore.playerName, game.skin).apply {
             addListener(object : ChangeListener() {
                 override fun changed(event: ChangeEvent?, actor: Actor?) {
                     game.audio.playClick()
@@ -147,6 +157,7 @@ class HomeScreen(val game: HarvestGame) : ScreenAdapter() {
 
         // Big Circular Blue Play Button
         playButton = TextButton("PLAY", game.skin).apply {
+            setOrigin(Align.center)
             addListener(object : ChangeListener() {
                 override fun changed(event: ChangeEvent?, actor: Actor?) {
                     game.audio.playClick()
@@ -162,7 +173,7 @@ class HomeScreen(val game: HarvestGame) : ScreenAdapter() {
 
     override fun show() {
         Gdx.input.inputProcessor = stage
-        namePillButton.setText("👤 " + game.playerStore.playerName)
+        namePillButton.setText(game.playerStore.playerName)
         refreshUnlockPanel()
     }
 
@@ -188,14 +199,13 @@ class HomeScreen(val game: HarvestGame) : ScreenAdapter() {
     }
 
     private fun refreshUnlockPanel() {
-        // Next field to unlock
         val nextField = GameConfig.FIELDS.getOrNull(selectedFieldIndex + 1)
         if (nextField != null) {
             unlockPanelTable.isVisible = true
-            resourceLabels[0].setText(String.format("🌾 %d/%d", game.playerStore.resWheat, nextField.reqWheat))
-            resourceLabels[1].setText(String.format("🥕 %d/%d", game.playerStore.resCarrot, nextField.reqCarrot))
-            resourceLabels[2].setText(String.format("🥬 %d/%d", game.playerStore.resCabbage, nextField.reqCabbage))
-            resourceLabels[3].setText(String.format("🌽 %d/%d", game.playerStore.resCorn, nextField.reqCorn))
+            resourceLabels[0].setText(String.format("Wheat %d/%d", game.playerStore.resWheat, nextField.reqWheat))
+            resourceLabels[1].setText(String.format("Carrot %d/%d", game.playerStore.resCarrot, nextField.reqCarrot))
+            resourceLabels[2].setText(String.format("Cabbage %d/%d", game.playerStore.resCabbage, nextField.reqCabbage))
+            resourceLabels[3].setText(String.format("Corn %d/%d", game.playerStore.resCorn, nextField.reqCorn))
         } else {
             unlockPanelTable.isVisible = false
         }
@@ -206,7 +216,7 @@ class HomeScreen(val game: HarvestGame) : ScreenAdapter() {
             override fun input(text: String?) {
                 if (!text.isNullOrBlank()) {
                     game.playerStore.setPlayerName(text.trim())
-                    namePillButton.setText("👤 " + game.playerStore.playerName)
+                    namePillButton.setText(game.playerStore.playerName)
                 }
             }
             override fun canceled() {}
@@ -217,26 +227,23 @@ class HomeScreen(val game: HarvestGame) : ScreenAdapter() {
         dioramaAngle += delta * 24f
         playButtonPulse += delta * 4f
 
-        // Play button subtle scale pulse
         val scale = 1.0f + MathUtils.sin(playButtonPulse) * 0.04f
         playButton.setScale(scale)
 
-        // Clear screen
         Gdx.gl.glClearColor(0.55f, 0.78f, 0.95f, 1f)
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT or GL20.GL_DEPTH_BUFFER_BIT)
 
-        // 3D Rotating Combine & Props in Diorama
+        // 3D Rotating Combine & Props in Diorama with lighting
         combineInstance.transform.idt()
         combineInstance.transform.setToTranslation(0f, 0.2f, 0f)
         combineInstance.transform.rotate(Vector3.Y, dioramaAngle)
 
         modelBatch.begin(dioramaCam)
-        modelBatch.render(haystackInstance)
-        modelBatch.render(treeInstance)
-        modelBatch.render(combineInstance)
+        modelBatch.render(haystackInstance, environment)
+        modelBatch.render(treeInstance, environment)
+        modelBatch.render(combineInstance, environment)
         modelBatch.end()
 
-        // 2D UI
         stage.act(delta)
         stage.draw()
     }

@@ -37,7 +37,7 @@ class ParticleSystem(private val maxParticles: Int = 1024) {
     private val indices = ShortArray(maxParticles * 6)
     private var mesh: Mesh? = null
 
-    // Dedicated Particle Shader Program
+    // Dedicated Particle Shader Program with identical precision qualifiers
     private val shader: ShaderProgram
 
     init {
@@ -61,10 +61,13 @@ class ParticleSystem(private val maxParticles: Int = 1024) {
         mesh?.setIndices(indices)
 
         val vertSrc = """
+            #ifdef GL_ES
+            precision mediump float;
+            #endif
             attribute vec3 a_position;
             attribute vec4 a_color;
             uniform mat4 u_projViewTrans;
-            varying vec4 v_color;
+            varying mediump vec4 v_color;
             void main() {
                 v_color = a_color;
                 gl_Position = u_projViewTrans * vec4(a_position, 1.0);
@@ -75,7 +78,7 @@ class ParticleSystem(private val maxParticles: Int = 1024) {
             #ifdef GL_ES
             precision mediump float;
             #endif
-            varying vec4 v_color;
+            varying mediump vec4 v_color;
             void main() {
                 gl_FragColor = v_color;
             }
@@ -187,7 +190,7 @@ class ParticleSystem(private val maxParticles: Int = 1024) {
     }
 
     fun render(camera: Camera) {
-        if (activeCount == 0) return
+        if (activeCount == 0 || !shader.isCompiled) return
 
         val right = Vector3(camera.up).crs(camera.direction).nor()
         val up = Vector3(camera.up).nor()
@@ -209,7 +212,6 @@ class ParticleSystem(private val maxParticles: Int = 1024) {
             val uy = up.y * size
             val uz = up.z * size
 
-            // 4 Quad Vertices
             vertices[vIdx + 0] = p.pos.x - rx - ux
             vertices[vIdx + 1] = p.pos.y - ry - uy
             vertices[vIdx + 2] = p.pos.z - rz - uz

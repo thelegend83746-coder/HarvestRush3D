@@ -26,7 +26,7 @@ android {
 
     sourceSets {
         getByName("main") {
-            jniLibs.srcDirs("libs")
+            jniLibs.srcDirs("src/main/jniLibs")
             assets.srcDirs("src/main/assets")
         }
     }
@@ -83,18 +83,18 @@ dependencies {
 
 tasks.register("copyAndroidNatives") {
     doFirst {
-        file("libs/armeabi-v7a").mkdirs()
-        file("libs/arm64-v8a").mkdirs()
-        file("libs/x86").mkdirs()
-        file("libs/x86_64").mkdirs()
+        file("src/main/jniLibs/armeabi-v7a").mkdirs()
+        file("src/main/jniLibs/arm64-v8a").mkdirs()
+        file("src/main/jniLibs/x86").mkdirs()
+        file("src/main/jniLibs/x86_64").mkdirs()
 
         try {
             natives.files.forEach { jar ->
-                var outputDir = file("libs/armeabi-v7a")
-                if (jar.name.contains("arm64-v8a")) outputDir = file("libs/arm64-v8a")
-                else if (jar.name.contains("armeabi-v7a")) outputDir = file("libs/armeabi-v7a")
-                else if (jar.name.contains("x86_64")) outputDir = file("libs/x86_64")
-                else if (jar.name.contains("x86")) outputDir = file("libs/x86")
+                var outputDir = file("src/main/jniLibs/armeabi-v7a")
+                if (jar.name.contains("arm64-v8a")) outputDir = file("src/main/jniLibs/arm64-v8a")
+                else if (jar.name.contains("armeabi-v7a")) outputDir = file("src/main/jniLibs/armeabi-v7a")
+                else if (jar.name.contains("x86_64")) outputDir = file("src/main/jniLibs/x86_64")
+                else if (jar.name.contains("x86")) outputDir = file("src/main/jniLibs/x86")
 
                 zipTree(jar).matching {
                     include("*.so")

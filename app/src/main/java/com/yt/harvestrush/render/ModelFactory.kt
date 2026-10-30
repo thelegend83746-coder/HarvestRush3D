@@ -14,12 +14,13 @@ import com.yt.harvestrush.config.GameConfig
  * Procedural low-poly 3D mesh generator.
  * Builds all combines, trailers, crops, buildings, and environmental props in code.
  * Zero external 3D asset files required.
+ * Uses Usage.ColorPacked for maximum GPU compatibility with libGDX DefaultShader.
  */
 class ModelFactory {
     private val modelBuilder = ModelBuilder()
     private val createdModels = mutableListOf<Model>()
 
-    private val attr = (Usage.Position or Usage.Normal or Usage.ColorUnpacked).toLong()
+    private val attr = (Usage.Position or Usage.Normal or Usage.ColorPacked).toLong()
 
     /**
      * Creates a colored material with diffuse and ambient color.
@@ -42,7 +43,7 @@ class ModelFactory {
         bodyBuilder.setColor(bodyColor)
         bodyBuilder.box(0f, 0.75f, 0f, 1.8f, 1.1f, 2.6f)
 
-        // 2. Glass cabin (light blue translucent look)
+        // 2. Glass cabin
         val cabColor = Color(0.65f, 0.88f, 0.98f, 0.85f)
         val cabBuilder = modelBuilder.part("cab", GL20.GL_TRIANGLES, attr, mat(cabColor))
         cabBuilder.setColor(cabColor)
@@ -72,13 +73,11 @@ class ModelFactory {
         markerBuilder.setColor(markerColor)
         markerBuilder.cone(0.25f, 0.4f, 0.25f, 4)
 
-        // 4. Wheels (big front wheels, smaller rear wheels)
+        // 4. Wheels
         val tireColor = Color(0.12f, 0.13f, 0.14f, 1f)
         val rimColor = Color(0.95f, 0.95f, 0.95f, 1f)
         val tireBuilder = modelBuilder.part("tires", GL20.GL_TRIANGLES, attr, mat(tireColor))
         tireBuilder.setColor(tireColor)
-
-        // Front left & right tires
         tireBuilder.cylinder(0.95f, 0.42f, 0.95f, 12)
 
         val rimBuilder = modelBuilder.part("rims", GL20.GL_TRIANGLES, attr, mat(rimColor))
@@ -120,7 +119,7 @@ class ModelFactory {
         barBuilder.setColor(drawbarColor)
         barBuilder.box(0f, 0.28f, 0.85f, 0.14f, 0.12f, 0.65f)
 
-        // Wagon wheels (left and right)
+        // Wagon wheels
         val wheelColor = Color(0.15f, 0.15f, 0.16f, 1f)
         val wheelBuilder = modelBuilder.part("wheels", GL20.GL_TRIANGLES, attr, mat(wheelColor))
         wheelBuilder.setColor(wheelColor)
@@ -131,16 +130,12 @@ class ModelFactory {
         return model
     }
 
-    /**
-     * Low-poly cargo mesh for Wheat: round golden hay bale with dark strap.
-     */
     fun createWheatCargoModel(): Model {
         modelBuilder.begin()
         val baleBuilder = modelBuilder.part("bale", GL20.GL_TRIANGLES, attr, mat(GameConfig.COLOR_WHEAT))
         baleBuilder.setColor(GameConfig.COLOR_WHEAT)
         baleBuilder.cylinder(0.85f, 0.95f, 0.85f, 12)
 
-        // Dark wrap strap around bale
         val strapColor = Color(0.35f, 0.25f, 0.15f, 1f)
         val strapBuilder = modelBuilder.part("strap", GL20.GL_TRIANGLES, attr, mat(strapColor))
         strapBuilder.setColor(strapColor)
@@ -151,9 +146,6 @@ class ModelFactory {
         return model
     }
 
-    /**
-     * Low-poly cargo mesh for Carrot: wooden crate filled with carrots.
-     */
     fun createCarrotCargoModel(): Model {
         modelBuilder.begin()
         val crateColor = GameConfig.COLOR_WOOD
@@ -174,9 +166,6 @@ class ModelFactory {
         return model
     }
 
-    /**
-     * Low-poly cargo mesh for Cabbage: wooden crate filled with cabbages.
-     */
     fun createCabbageCargoModel(): Model {
         modelBuilder.begin()
         val crateBuilder = modelBuilder.part("crate", GL20.GL_TRIANGLES, attr, mat(GameConfig.COLOR_WOOD))
@@ -192,9 +181,6 @@ class ModelFactory {
         return model
     }
 
-    /**
-     * Low-poly cargo mesh for Corn: crate filled with golden corn cobs.
-     */
     fun createCornCargoModel(): Model {
         modelBuilder.begin()
         val crateBuilder = modelBuilder.part("crate", GL20.GL_TRIANGLES, attr, mat(GameConfig.COLOR_WOOD))
@@ -210,104 +196,29 @@ class ModelFactory {
         return model
     }
 
-    /**
-     * Procedural field crop unit: Wheat spike (4-sided tapered prism).
-     */
-    fun createWheatCropModel(): Model {
-        modelBuilder.begin()
-        val part = modelBuilder.part("wheat", GL20.GL_TRIANGLES, attr, mat(GameConfig.COLOR_WHEAT))
-        part.setColor(GameConfig.COLOR_WHEAT)
-        // Tall tapered prism
-        part.cone(0.22f, 1.35f, 0.22f, 4)
-        val model = modelBuilder.end()
-        createdModels.add(model)
-        return model
-    }
-
-    /**
-     * Procedural field crop unit: Carrot with green top.
-     */
-    fun createCarrotCropModel(): Model {
-        modelBuilder.begin()
-        val root = modelBuilder.part("root", GL20.GL_TRIANGLES, attr, mat(GameConfig.COLOR_CARROT))
-        root.setColor(GameConfig.COLOR_CARROT)
-        root.cone(0.24f, 0.55f, 0.24f, 5)
-
-        val top = modelBuilder.part("leaves", GL20.GL_TRIANGLES, attr, mat(GameConfig.COLOR_CARROT_TOP))
-        top.setColor(GameConfig.COLOR_CARROT_TOP)
-        top.cone(0.32f, 0.65f, 0.32f, 5)
-        val model = modelBuilder.end()
-        createdModels.add(model)
-        return model
-    }
-
-    /**
-     * Procedural field crop unit: Cabbage head.
-     */
-    fun createCabbageCropModel(): Model {
-        modelBuilder.begin()
-        val part = modelBuilder.part("cabbage", GL20.GL_TRIANGLES, attr, mat(GameConfig.COLOR_CABBAGE))
-        part.setColor(GameConfig.COLOR_CABBAGE)
-        part.box(0f, 0.3f, 0f, 0.6f, 0.5f, 0.6f)
-        val model = modelBuilder.end()
-        createdModels.add(model)
-        return model
-    }
-
-    /**
-     * Procedural field crop unit: Corn stalk with ear.
-     */
-    fun createCornCropModel(): Model {
-        modelBuilder.begin()
-        val stalk = modelBuilder.part("stalk", GL20.GL_TRIANGLES, attr, mat(GameConfig.COLOR_CORN_STALK))
-        stalk.setColor(GameConfig.COLOR_CORN_STALK)
-        stalk.cylinder(0.12f, 1.6f, 0.12f, 5)
-
-        val ear = modelBuilder.part("ear", GL20.GL_TRIANGLES, attr, mat(GameConfig.COLOR_CORN))
-        ear.setColor(GameConfig.COLOR_CORN)
-        ear.box(0.12f, 0.8f, 0f, 0.2f, 0.5f, 0.2f)
-        val model = modelBuilder.end()
-        createdModels.add(model)
-        return model
-    }
-
-    /**
-     * Wooden fence unit (post + 2 horizontal rails).
-     */
     fun createFenceModel(): Model {
         modelBuilder.begin()
         val fencePart = modelBuilder.part("fence", GL20.GL_TRIANGLES, attr, mat(GameConfig.COLOR_WOOD))
         fencePart.setColor(GameConfig.COLOR_WOOD)
-
-        // Vertical post
         fencePart.box(0f, 0.6f, 0f, 0.22f, 1.2f, 0.22f)
-        // Upper rail
         fencePart.box(1.0f, 0.85f, 0f, 2.0f, 0.12f, 0.1f)
-        // Lower rail
         fencePart.box(1.0f, 0.42f, 0f, 2.0f, 0.12f, 0.1f)
-
         val model = modelBuilder.end()
         createdModels.add(model)
         return model
     }
 
-    /**
-     * Classic Red Barn with white X doors and gambrel roof.
-     */
     fun createBarnModel(): Model {
         modelBuilder.begin()
-        // Barn main walls
         val walls = modelBuilder.part("walls", GL20.GL_TRIANGLES, attr, mat(GameConfig.COLOR_BARN_RED))
         walls.setColor(GameConfig.COLOR_BARN_RED)
         walls.box(0f, 2.5f, 0f, 6.0f, 5.0f, 8.0f)
 
-        // Barn roof (white/grey)
         val roofColor = Color(0.92f, 0.92f, 0.94f, 1f)
         val roof = modelBuilder.part("roof", GL20.GL_TRIANGLES, attr, mat(roofColor))
         roof.setColor(roofColor)
         roof.box(0f, 5.5f, 0f, 6.6f, 1.5f, 8.4f)
 
-        // White door frames
         val doorColor = Color(1f, 1f, 1f, 1f)
         val doors = modelBuilder.part("doors", GL20.GL_TRIANGLES, attr, mat(doorColor))
         doors.setColor(doorColor)
@@ -318,9 +229,6 @@ class ModelFactory {
         return model
     }
 
-    /**
-     * Farmhouse with porch, grey roof, chimney, and dormer windows.
-     */
     fun createFarmhouseModel(): Model {
         modelBuilder.begin()
         val houseColor = Color(0.78f, 0.65f, 0.52f, 1f)
@@ -328,13 +236,11 @@ class ModelFactory {
         walls.setColor(houseColor)
         walls.box(0f, 2.2f, 0f, 5.2f, 4.4f, 6.2f)
 
-        // Grey roof
         val roofColor = Color(0.38f, 0.42f, 0.46f, 1f)
         val roof = modelBuilder.part("house_roof", GL20.GL_TRIANGLES, attr, mat(roofColor))
         roof.setColor(roofColor)
         roof.box(0f, 4.8f, 0f, 5.8f, 1.4f, 6.8f)
 
-        // Chimney
         val brickColor = Color(0.68f, 0.28f, 0.22f, 1f)
         val chimney = modelBuilder.part("chimney", GL20.GL_TRIANGLES, attr, mat(brickColor))
         chimney.setColor(brickColor)
@@ -345,9 +251,6 @@ class ModelFactory {
         return model
     }
 
-    /**
-     * Low-poly Windmill with tower and 4 blades.
-     */
     fun createWindmillModel(): Model {
         modelBuilder.begin()
         val towerColor = Color(0.92f, 0.90f, 0.86f, 1f)
@@ -355,13 +258,11 @@ class ModelFactory {
         tower.setColor(towerColor)
         tower.cone(2.8f, 7.5f, 2.8f, 8)
 
-        // Rotor cap
         val capColor = Color(0.35f, 0.25f, 0.18f, 1f)
         val cap = modelBuilder.part("cap", GL20.GL_TRIANGLES, attr, mat(capColor))
         cap.setColor(capColor)
         cap.box(0f, 7.5f, 0f, 1.6f, 1.1f, 1.6f)
 
-        // 4 blades
         val bladeColor = Color(0.96f, 0.96f, 0.96f, 1f)
         val blades = modelBuilder.part("blades", GL20.GL_TRIANGLES, attr, mat(bladeColor))
         blades.setColor(bladeColor)
@@ -373,9 +274,6 @@ class ModelFactory {
         return model
     }
 
-    /**
-     * Low-poly Tree with trunk and cubic block canopy.
-     */
     fun createTreeModel(): Model {
         modelBuilder.begin()
         val trunkColor = Color(0.42f, 0.28f, 0.16f, 1f)
@@ -383,7 +281,6 @@ class ModelFactory {
         trunk.setColor(trunkColor)
         trunk.box(0f, 1.2f, 0f, 0.55f, 2.4f, 0.55f)
 
-        // Blocky canopy
         val leavesColor = Color(0.24f, 0.65f, 0.24f, 1f)
         val leaves = modelBuilder.part("leaves", GL20.GL_TRIANGLES, attr, mat(leavesColor))
         leaves.setColor(leavesColor)
@@ -394,9 +291,6 @@ class ModelFactory {
         return model
     }
 
-    /**
-     * Small low-poly environmental props: haystack, wheelbarrow, pond.
-     */
     fun createHaystackModel(): Model {
         modelBuilder.begin()
         val part = modelBuilder.part("haystack", GL20.GL_TRIANGLES, attr, mat(GameConfig.COLOR_WHEAT))
@@ -407,9 +301,6 @@ class ModelFactory {
         return model
     }
 
-    /**
-     * Low-poly pond water disc.
-     */
     fun createPondModel(): Model {
         modelBuilder.begin()
         val pondColor = Color(0.35f, 0.72f, 0.92f, 0.9f)
@@ -421,9 +312,6 @@ class ModelFactory {
         return model
     }
 
-    /**
-     * Disposes all generated models and frees GPU memory.
-     */
     fun dispose() {
         for (m in createdModels) {
             m.dispose()

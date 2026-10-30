@@ -2,7 +2,10 @@ package com.yt.harvestrush.core
 
 import com.badlogic.gdx.graphics.Camera
 import com.badlogic.gdx.graphics.Color
+import com.badlogic.gdx.graphics.g3d.Environment
 import com.badlogic.gdx.graphics.g3d.ModelBatch
+import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute
+import com.badlogic.gdx.graphics.g3d.environment.DirectionalLight
 import com.badlogic.gdx.math.MathUtils
 import com.yt.harvestrush.ai.BotController
 import com.yt.harvestrush.ai.DensityMap
@@ -38,6 +41,11 @@ class World(
     val densityMap = DensityMap(cropGrid)
     val particleSystem = ParticleSystem()
 
+    val environment = Environment().apply {
+        set(ColorAttribute(ColorAttribute.AmbientLight, 0.65f, 0.65f, 0.68f, 1f))
+        add(DirectionalLight().set(0.95f, 0.92f, 0.85f, -0.4f, -0.8f, -0.4f))
+    }
+
     var matchTimeRemaining: Float = GameConfig.DEFAULT_MATCH_DURATION
     var isMatchFinished: Boolean = false
         private set
@@ -69,7 +77,6 @@ class World(
         matchTimeRemaining = GameConfig.DEFAULT_MATCH_DURATION
         isMatchFinished = false
 
-        // 1. Spawn Player Combine (ID 0)
         val playerColor = GameConfig.COMBINE_COLORS[0]
         playerCombine = Combine(
             id = 0,
@@ -85,7 +92,6 @@ class World(
         playerCombine.reset(-18f, 18f, -45f)
         combines.add(playerCombine)
 
-        // 2. Spawn 3 Rival AI Bots
         val botNames = GameConfig.BOT_NAMES.shuffled()
         val botSpawnPositions = listOf(
             Triple(18f, 18f, -135f),
@@ -184,26 +190,19 @@ class World(
         }
     }
 
-    /**
-     * Renders ground & instanced crops with custom shader.
-     */
     fun renderGroundAndCrops(camera: Camera, delta: Float) {
         cropRenderer.render(camera, delta)
     }
 
-    /**
-     * Renders 3D models (props, combines, wagon chains) through ModelBatch.
-     */
     fun renderEntities(batch: ModelBatch, camera: Camera) {
-        fieldFactory.renderProps(batch)
+        for (prop in fieldFactory.propInstances) {
+            batch.render(prop, environment)
+        }
         for (c in combines) {
-            c.render(batch, camera)
+            c.render(batch, camera, environment)
         }
     }
 
-    /**
-     * Renders particle effects.
-     */
     fun renderParticles(camera: Camera) {
         particleSystem.render(camera)
     }

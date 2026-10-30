@@ -21,7 +21,7 @@ class ShadowBlob {
 
     init {
         val mb = ModelBuilder()
-        val attr = (Usage.Position or Usage.Normal or Usage.ColorUnpacked).toLong()
+        val attr = (Usage.Position or Usage.Normal or Usage.ColorPacked).toLong()
         val shadowColor = Color(0.12f, 0.15f, 0.18f, 0.45f)
         val mat = Material(
             ColorAttribute.createDiffuse(shadowColor),
@@ -31,7 +31,6 @@ class ShadowBlob {
         mb.begin()
         val part = mb.part("shadow", GL20.GL_TRIANGLES, attr, mat)
         part.setColor(shadowColor)
-        // Flat oval/disc lifted 0.02 units above ground to avoid z-fighting
         part.cylinder(1.0f, 0.02f, 1.0f, 12)
         model = mb.end()
         instance = ModelInstance(model)
